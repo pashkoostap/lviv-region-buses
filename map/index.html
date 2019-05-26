@@ -35,12 +35,17 @@
   <body>
     <form id="form">
       <select id="date">
-        <option value="1558645200000">24-05-2019</option>
-        <option value="1558731600000">25-05-2019</option>
-        <option value="1558818000000">26-05-2019</option>
+        <option value="1558213200000">19-05-2019 Неділя</option>
+        <option value="1558299600000">22-05-2019 Понеділок</option>
+        <option value="1558386000000">21-05-2019 Вівторок</option>
+        <option value="1558472400000">22-05-2019 Середа</option>
+        <option value="1558558800000">23-05-2019 Четвер</option>
+        <option value="1558645200000">24-05-2019 П'ятниця</option>
+        <option value="1558731600000">25-05-2019 Субота</option>
+        <option value="1558818000000">26-05-2019 Неділя</option>
       </select>
 
-      <input id="routeId" placeholder="Route id" />
+      <select id="routeId"></select>
 
       <button type="submit">Find</button>
     </form>
@@ -54,6 +59,23 @@
         initMap(routeId, date);
       });
 
+      function loadRoutes() {
+        window
+          .fetch("/routes")
+          .then(res => res.json())
+          .then(routes => {
+            const routeSelect = document.getElementById("routeId");
+            routes.forEach(route => {
+              const option = document.createElement("option");
+              option.innerText = route.Name;
+              option.value = route.Id;
+              routeSelect.appendChild(option);
+            });
+          });
+      }
+
+      loadRoutes();
+
       function initMap(routeId, date) {
         var old = document.querySelector("#map");
         if (old) {
@@ -64,25 +86,17 @@
         document.body.appendChild(node);
 
         var map = L.map("map");
-        var xhr = new XMLHttpRequest();
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-        // var routeId = "1103315";
-        // var date = "1558731600000";
-
-        xhr.open(
-          "GET",
-          `http://localhost:7777/routes/1?routeId=${routeId}&date=${date}`,
-          true
-        );
-
-        xhr.onreadystatechange = function() {
-          // (3)
-          if (xhr.readyState != 4) return;
-
-          if (xhr.status != 200) {
-          } else {
-            var pointsForJson = JSON.parse(xhr.responseText)
-              .routeVehicles.filter(item => item.X && item.Y)
+        window
+          .fetch(`/routes/1?routeId=${routeId}&date=${date}`)
+          .then(res => res.json())
+          .then(({ routeVehicles }) => {
+            var pointsForJson = routeVehicles
+              .filter(item => item.X && item.Y)
               .filter((item, i, arr) => {
                 const next = arr[i + 1];
                 const trashhold = 0.001;
@@ -109,15 +123,7 @@
 
               map.fitBounds(polyline.getBounds());
             }
-          }
-        };
-
-        xhr.send(); // (1)
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+          });
 
         function lngLatArrayToLatLng(lngLatArray) {
           return lngLatArray.map(lngLatToLatLng);
@@ -127,8 +133,6 @@
           return [lngLat[1], lngLat[0]];
         }
       }
-
-      // initMap();
     </script>
   </body>
 </html>
