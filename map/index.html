@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet-src.js"></script>
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      .leaflet-div-icon {
+        padding: 5px;
+        border-radius: 50%;
+        border: 1px solid blue;
+      }
+
+      #map {
+        height: 100vh;
+      }
+
+      #form {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="form">
+      <select id="date">
+        <option value="1558645200000">24-05-2019</option>
+        <option value="1558731600000">25-05-2019</option>
+        <option value="1558818000000">26-05-2019</option>
+      </select>
+
+      <input id="routeId" placeholder="Route id" />
+
+      <button type="submit">Find</button>
+    </form>
+
+    <script>
+      document.querySelector("#form").addEventListener("submit", e => {
+        e.preventDefault();
+        var routeId = document.querySelector("#routeId").value;
+        var date = document.querySelector("#date").value;
+
+        initMap(routeId, date);
+      });
+
+      function initMap(routeId, date) {
+        var old = document.querySelector("#map");
+        if (old) {
+          old.remove();
+        }
+        var node = document.createElement("div");
+        node.setAttribute("id", "map");
+        document.body.appendChild(node);
+
+        var map = L.map("map");
+        var xhr = new XMLHttpRequest();
+
+        // var routeId = "1103315";
+        // var date = "1558731600000";
+
+        xhr.open(
+          "GET",
+          `http://localhost:7777/routes/1?routeId=${routeId}&date=${date}`,
+          true
+        );
+
+        xhr.onreadystatechange = function() {
+          // (3)
+          if (xhr.readyState != 4) return;
+
+          if (xhr.status != 200) {
+          } else {
+            var pointsForJson = JSON.parse(xhr.responseText)
+              .routeVehicles.filter(item => item.X && item.Y)
+              .filter((item, i, arr) => {
+                const next = arr[i + 1];
+                const trashhold = 0.001;
+                return next
+                  ? Math.abs(next.X - item.X) > trashhold &&
+                      Math.abs(next.Y - item.Y) > trashhold
+                  : true;
+              })
+              .map(item => [item.X, item.Y, item.created]);
+
+            if (pointsForJson.length) {
+              pointsForJson.forEach(function(lngLat, i) {
+                L.marker(lngLatToLatLng(lngLat), {
+                  icon: new L.divIcon({
+                    html: `<div>${i}</div>`
+                  })
+                })
+                  .addTo(map)
+                  .bindPopup(`<p>${new Date(lngLat[2])}</p>`);
+              });
+              var polyline = L.polyline(
+                lngLatArrayToLatLng(pointsForJson)
+              ).addTo(map);
+
+              map.fitBounds(polyline.getBounds());
+            }
+          }
+        };
+
+        xhr.send(); // (1)
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        function lngLatArrayToLatLng(lngLatArray) {
+          return lngLatArray.map(lngLatToLatLng);
+        }
+
+        function lngLatToLatLng(lngLat) {
+          return [lngLat[1], lngLat[0]];
+        }
+      }
+
+      // initMap();
+    </script>
+  </body>
+</html>
