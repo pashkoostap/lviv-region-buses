@@ -43,6 +43,11 @@
         <option value="1558645200000">24-05-2019 П'ятниця</option>
         <option value="1558731600000">25-05-2019 Субота</option>
         <option value="1558818000000">26-05-2019 Неділя</option>
+        <option value="1558904400000">27-05-2019 Понеділок</option>
+        <option value="1558990800000">28-05-2019 Вівторок</option>
+        <option value="1559077200000">29-05-2019 Середа</option>
+        <option value="1559163600000">30-05-2019 Четвер</option>
+        <option value="1559250000000">31-05-2019 П'ятниця</option>
       </select>
 
       <select id="routeId"></select>
@@ -51,13 +56,23 @@
     </form>
 
     <script>
+      const routeSelect = document.querySelector("#routeId");
+      const dateSelect = document.querySelector("#date");
       document.querySelector("#form").addEventListener("submit", e => {
         e.preventDefault();
-        var routeId = document.querySelector("#routeId").value;
-        var date = document.querySelector("#date").value;
+        var routeId = routeSelect.value;
+        var date = dateSelect.value;
 
         initMap(routeId, date);
       });
+      routeSelect.addEventListener("change", onSelectChange);
+      dateSelect.addEventListener("change", onSelectChange);
+
+      function onSelectChange() {
+        if (routeSelect.value && dateSelect.value) {
+          initMap(routeSelect.value, dateSelect.value);
+        }
+      }
 
       function loadRoutes() {
         window
