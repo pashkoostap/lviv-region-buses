@@ -52,21 +52,36 @@
 
       <select id="routeId"></select>
 
+      <input id="input" />
+
       <button type="submit">Find</button>
     </form>
 
     <script>
-      const routeSelect = document.querySelector("#routeId");
-      const dateSelect = document.querySelector("#date");
-      document.querySelector("#form").addEventListener("submit", e => {
+      const routeSelect = document.querySelector('#routeId');
+      const dateSelect = document.querySelector('#date');
+      const input = document.querySelector('#input');
+      let routes = [];
+      let filterdRoutes = [];
+
+      document.querySelector('#form').addEventListener('submit', e => {
         e.preventDefault();
         var routeId = routeSelect.value;
         var date = dateSelect.value;
 
         initMap(routeId, date);
       });
-      routeSelect.addEventListener("change", onSelectChange);
-      dateSelect.addEventListener("change", onSelectChange);
+      routeSelect.addEventListener('change', onSelectChange);
+      dateSelect.addEventListener('change', onSelectChange);
+      input.addEventListener('input', e => {
+        const value = e.target.value;
+
+        filteredRoutes = routes.filter(item =>
+          item.Name.match(new RegExp(value.toLowerCase(), 'gi'))
+        );
+
+        renderRoutes();
+      });
 
       function onSelectChange() {
         if (routeSelect.value && dateSelect.value) {
@@ -76,32 +91,41 @@
 
       function loadRoutes() {
         window
-          .fetch("/routes")
+          .fetch('/routes')
           .then(res => res.json())
-          .then(routes => {
-            const routeSelect = document.getElementById("routeId");
-            routes.forEach(route => {
-              const option = document.createElement("option");
-              option.innerText = route.Name;
-              option.value = route.Id;
-              routeSelect.appendChild(option);
-            });
+          .then(data => {
+            const routeSelect = document.getElementById('routeId');
+            routes = data;
+            filteredRoutes = routes;
+
+            renderRoutes();
           });
       }
 
       loadRoutes();
 
+      function renderRoutes() {
+        routeSelect.innerHTML = '';
+
+        filteredRoutes.forEach(route => {
+          const option = document.createElement('option');
+          option.innerText = route.Name;
+          option.value = route.Id;
+          routeSelect.appendChild(option);
+        });
+      }
+
       function initMap(routeId, date) {
-        var old = document.querySelector("#map");
+        var old = document.querySelector('#map');
         if (old) {
           old.remove();
         }
-        var node = document.createElement("div");
-        node.setAttribute("id", "map");
+        var node = document.createElement('div');
+        node.setAttribute('id', 'map');
         document.body.appendChild(node);
 
-        var map = L.map("map");
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        var map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
@@ -124,9 +148,11 @@
 
             if (pointsForJson.length) {
               pointsForJson.forEach(function(lngLat, i) {
+                const date = new Date(lngLat[2]);
+
                 L.marker(lngLatToLatLng(lngLat), {
                   icon: new L.divIcon({
-                    html: `<div>${i}</div>`
+                    html: `<div>${i} ${date.getHours()} ${date.getMinutes()}</div>`
                   })
                 })
                   .addTo(map)
