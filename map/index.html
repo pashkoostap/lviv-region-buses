@@ -34,24 +34,11 @@
   </head>
   <body>
     <form id="form">
-      <select id="date">
-        <option value="1558213200000">19-05-2019 Неділя</option>
-        <option value="1558299600000">22-05-2019 Понеділок</option>
-        <option value="1558386000000">21-05-2019 Вівторок</option>
-        <option value="1558472400000">22-05-2019 Середа</option>
-        <option value="1558558800000">23-05-2019 Четвер</option>
-        <option value="1558645200000">24-05-2019 П'ятниця</option>
-        <option value="1558731600000">25-05-2019 Субота</option>
-        <option value="1558818000000">26-05-2019 Неділя</option>
-        <option value="1558904400000">27-05-2019 Понеділок</option>
-        <option value="1558990800000">28-05-2019 Вівторок</option>
-        <option value="1559077200000">29-05-2019 Середа</option>
-        <option value="1559163600000">30-05-2019 Четвер</option>
-        <option value="1562965200000">13-07-2019 Субота</option>
-        <option value="1563051600000">14-07-2019 Неділя</option>
-      </select>
+      <select id="date"> </select>
 
       <select id="routeId"></select>
+
+      <select id="vehicle"></select>
 
       <input id="input" />
 
@@ -61,9 +48,39 @@
     <script>
       const routeSelect = document.querySelector('#routeId');
       const dateSelect = document.querySelector('#date');
+      const vehicleSelect = document.querySelector('#vehicle');
       const input = document.querySelector('#input');
+      const days = [
+        'Неділя',
+        'Понеділок',
+        'Вівторок',
+        'Середа',
+        'Четвер',
+        `П'ятниця`,
+        'Субота'
+      ];
+      const dates = [
+        '2019-08-03',
+        '2019-07-14',
+        '2019-07-13',
+        '2019-05-30',
+        '2019-05-29',
+        '2019-05-28',
+        '2019-05-27',
+        '2019-05-26',
+        '2019-05-25',
+        '2019-05-24',
+        '2019-05-23',
+        '2019-05-22',
+        '2019-05-21',
+        '2019-05-20',
+        '2019-05-19'
+      ];
       let routes = [];
-      let filterdRoutes = [];
+      let filteredRoutes = [];
+      let vehicles = [];
+      let routeVehicles = [];
+      let map;
 
       document.querySelector('#form').addEventListener('submit', e => {
         e.preventDefault();
@@ -83,11 +100,17 @@
 
         renderRoutes();
       });
+      vehicleSelect.addEventListener('change', onVehicleSelect);
 
       function onSelectChange() {
         if (routeSelect.value && dateSelect.value) {
           initMap(routeSelect.value, dateSelect.value);
         }
+      }
+
+      function onVehicleSelect(e) {
+        setupMap();
+        updateMap();
       }
 
       function loadRoutes() {
@@ -100,6 +123,7 @@
             filteredRoutes = routes;
 
             renderRoutes();
+            renderDates();
           });
       }
 
@@ -116,7 +140,45 @@
         });
       }
 
-      function initMap(routeId, date) {
+      function renderDates() {
+        dateSelect.innerHTML = '';
+
+        dates.forEach(date => {
+          const option = document.createElement('option');
+          option.value = new Date(date).setHours(0, 0, 0, 0);
+          option.innerText = `${date} ${days[new Date(date).getDay()]}`;
+          dateSelect.appendChild(option);
+        });
+      }
+
+      function renderVehicles() {
+        vehicles = routeVehicles.reduce((acc, route) => {
+          if (!acc.find(item => item.value === route.VehicleName)) {
+            const points = routeVehicles.filter(
+              item => item.VehicleName === route.VehicleName && item.X && item.Y
+            );
+
+            return [
+              ...acc,
+              { value: route.VehicleName, points: points.length }
+            ];
+          } else {
+            return acc;
+          }
+        }, []);
+        vehicleSelect.innerHTML = '';
+
+        vehicles.forEach((vehicle, i) => {
+          const option = document.createElement('option');
+          option.value = vehicle.value;
+          option.innerText = `${i + 1}/${vehicles.length}: ${vehicle.value} (${
+            vehicle.points
+          })`;
+          vehicleSelect.appendChild(option);
+        });
+      }
+
+      function setupMap() {
         var old = document.querySelector('#map');
         if (old) {
           old.remove();
@@ -125,48 +187,14 @@
         node.setAttribute('id', 'map');
         document.body.appendChild(node);
 
-        var map = L.map('map');
+        map = L.map('map');
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+      }
 
-        window
-          .fetch(`/routes/1?routeId=${routeId}&date=${date}`)
-          .then(res => res.json())
-          .then(({ routeVehicles }) => {
-            var pointsForJson = routeVehicles
-              .filter(item => item.X && item.Y)
-              .filter((item, i, arr) => {
-                const next = arr[i + 1];
-                const trashhold = 0.001;
-                return next
-                  ? Math.abs(next.X - item.X) > trashhold &&
-                      Math.abs(next.Y - item.Y) > trashhold
-                  : true;
-              })
-              .map(item => [item.X, item.Y, item.created]);
-
-            if (pointsForJson.length) {
-              pointsForJson.forEach(function(lngLat, i) {
-                const date = new Date(lngLat[2]);
-
-                L.marker(lngLatToLatLng(lngLat), {
-                  icon: new L.divIcon({
-                    html: `<div>${i} ${date.getHours()} ${date.getMinutes()}</div>`
-                  })
-                })
-                  .addTo(map)
-                  .bindPopup(`<p>${new Date(lngLat[2])}</p>`);
-              });
-              var polyline = L.polyline(
-                lngLatArrayToLatLng(pointsForJson)
-              ).addTo(map);
-
-              map.fitBounds(polyline.getBounds());
-            }
-          });
-
+      function updateMap() {
         function lngLatArrayToLatLng(lngLatArray) {
           return lngLatArray.map(lngLatToLatLng);
         }
@@ -174,6 +202,55 @@
         function lngLatToLatLng(lngLat) {
           return [lngLat[1], lngLat[0]];
         }
+
+        var pointsForJson = routeVehicles
+          .filter(item => item.X && item.Y)
+          .filter(
+            item => item.VehicleName.trim() === vehicleSelect.value.trim()
+          )
+          .filter((item, i, arr) => {
+            const next = arr[i + 1];
+            const trashhold = 0.001;
+            return next
+              ? Math.abs(next.X - item.X) > trashhold &&
+                  Math.abs(next.Y - item.Y) > trashhold
+              : true;
+          })
+          .map(item => [item.X, item.Y, item.created]);
+
+        if (pointsForJson.length) {
+          pointsForJson.forEach(function(lngLat, i) {
+            const date = new Date(lngLat[2]);
+
+            L.marker(lngLatToLatLng(lngLat), {
+              icon: new L.divIcon({
+                html: `<div>${i} ${date.getHours()} ${date.getMinutes()}</div>`
+              })
+            })
+              .addTo(map)
+              .bindPopup(`<p>${new Date(lngLat[2])}</p>`);
+          });
+          var polyline = L.polyline(lngLatArrayToLatLng(pointsForJson)).addTo(
+            map
+          );
+
+          map.fitBounds(polyline.getBounds());
+        }
+      }
+
+      function initMap(routeId, date) {
+        setupMap();
+
+        window
+          .fetch(`/routes/1?routeId=${routeId}&date=${date}`)
+          .then(res => res.json())
+          .then(data => {
+            routeVehicles = data.routeVehicles;
+
+            renderVehicles();
+
+            updateMap();
+          });
       }
     </script>
   </body>
